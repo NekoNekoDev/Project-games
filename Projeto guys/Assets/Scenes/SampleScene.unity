@@ -51170,8 +51170,8 @@ MonoBehaviour:
   - {fileID: 1891810024}
   - {fileID: 12161178}
   - {fileID: 143692860}
-  maxMobs: 3
-  mobSpawnInterval: 8
+  maxMobs: 5
+  mobSpawnInterval: 10
   spawnMobsOnStart: 0
   respawnMobs: 1
   gemPrefabs:
