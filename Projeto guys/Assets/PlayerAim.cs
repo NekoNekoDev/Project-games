@@ -5,40 +5,66 @@ using UnityEngine.InputSystem;
 public class PlayerAim : MonoBehaviour
 {
     [Header("References")]
-    public Transform aimPivot;
-    public Camera mainCamera;
+    [SerializeField] private Transform aimPivot;
+    [SerializeField] private Camera mainCamera;
 
-    [Header("Gamepad Settings")]
-    public float deadZone = 0.2f;
+    [Header("Aim Settings")]
+    [SerializeField] private float rotationSpeed = 720f;
+    [SerializeField] private float deadZone = 0.2f;
+    [SerializeField] private float mouseMovementThreshold = 0.5f;
 
-    // Guarda a direção do analógico direito.
     private Vector2 gamepadAim;
+    private Vector2 lastMousePosition;
+
+    private bool usingGamepad = false;
+    private float targetAngle;
 
     private void Awake()
     {
         if (mainCamera == null)
             mainCamera = Camera.main;
+
+        if (aimPivot != null)
+            targetAngle = aimPivot.eulerAngles.z;
+
+        if (Mouse.current != null)
+            lastMousePosition =
+                Mouse.current.position.ReadValue();
     }
 
     private void Update()
     {
-        if (aimPivot == null || mainCamera == null)
+        if (aimPivot == null)
             return;
 
-        Vector2 aimDirection;
-
-        // Se o jogador estiver movimentando
-        // o analógico direito, utiliza o controle.
-        if (gamepadAim.magnitude > deadZone)
+        // Detecta movimento real do mouse.
+        if (Mouse.current != null)
         {
-            aimDirection = gamepadAim;
+            Vector2 mousePosition =
+                Mouse.current.position.ReadValue();
+
+            if (Vector2.Distance(
+                mousePosition,
+                lastMousePosition
+            ) > mouseMovementThreshold)
+            {
+                usingGamepad = false;
+            }
+
+            lastMousePosition = mousePosition;
         }
-        else
-        {
-            // Caso contrário, utiliza o mouse.
-            if (Mouse.current == null)
-                return;
 
+        // Calcula a direção da mira.
+        if (usingGamepad)
+        {
+            if (gamepadAim.magnitude > deadZone)
+            {
+                UpdateTargetAngle(gamepadAim);
+            }
+        }
+        else if (Mouse.current != null &&
+                 mainCamera != null)
+        {
             Vector2 mousePosition =
                 Mouse.current.position.ReadValue();
 
@@ -51,29 +77,52 @@ public class PlayerAim : MonoBehaviour
                     )
                 );
 
-            aimDirection =
-                mouseWorldPosition - aimPivot.position;
+            Vector2 direction =
+                (Vector2)(mouseWorldPosition -
+                aimPivot.position);
+
+            if (direction.sqrMagnitude > 0.001f)
+                UpdateTargetAngle(direction);
         }
 
-        float angle = Mathf.Atan2(
-            aimDirection.y,
-            aimDirection.x
-        ) * Mathf.Rad2Deg;
+        // Rotaciona suavemente até o ângulo desejado.
+        float currentAngle = aimPivot.eulerAngles.z;
+
+        float newAngle = Mathf.MoveTowardsAngle(
+            currentAngle,
+            targetAngle,
+            rotationSpeed * Time.deltaTime
+        );
 
         aimPivot.rotation =
-            Quaternion.Euler(0f, 0f, angle);
+            Quaternion.Euler(0f, 0f, newAngle);
 
-        // Corrige a orientação visual da arma.
-        aimPivot.localScale = new Vector3(
-            1f,
-            aimDirection.x < 0f ? -1f : 1f,
-            1f
-        );
+        // Espelha verticalmente a arma ao mirar
+        // para a esquerda, sem inverter o Player.
+        Vector3 scale = aimPivot.localScale;
+        scale.y = Mathf.Cos(newAngle * Mathf.Deg2Rad) < 0f
+            ? -1f
+            : 1f;
+
+        aimPivot.localScale = scale;
     }
 
-    // Recebe a direção do analógico direito.
+    private void UpdateTargetAngle(Vector2 direction)
+    {
+        targetAngle = Mathf.Atan2(
+            direction.y,
+            direction.x
+        ) * Mathf.Rad2Deg;
+    }
+
+    // Ação Aim do New Input System.
     public void Aim(InputAction.CallbackContext context)
     {
         gamepadAim = context.ReadValue<Vector2>();
+
+        if (gamepadAim.magnitude > deadZone)
+        {
+            usingGamepad = true;
+        }
     }
 }

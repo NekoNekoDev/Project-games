@@ -29,6 +29,20 @@ public class PlayerMovement : MonoBehaviour
     public float maxFallSpeed = 18f;
     public float fallSpeedMultiplier = 2f;
 
+    [Header("Visual")]
+    [SerializeField] private SpriteRenderer playerSprite;
+
+
+    private void Awake()
+    {
+        isFacingRight = true;
+
+        if (playerSprite != null)
+        {
+            playerSprite.flipX = false;
+        }
+    }
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -42,7 +56,7 @@ public class PlayerMovement : MonoBehaviour
         rb.linearVelocity = newVelocity;
         isGrounded();
         Gravity();
-        Flip();
+        UpdateFacingDirection();
 
         animator.SetFloat("yVelocity", rb.linearVelocity.y);
         animator.SetFloat("magnitude", rb.linearVelocity.magnitude);
@@ -101,18 +115,34 @@ public class PlayerMovement : MonoBehaviour
         Gizmos.color = Color.white;
         Gizmos.DrawCube(groundCheckPos.position, groundCheckSize);
     }
-
-    private void Flip()
+    private void UpdateFacingDirection()
     {
-        if (isFacingRight && horizontalMovement < 0f ||
-            !isFacingRight && horizontalMovement > 0f)
-        {
-            isFacingRight = !isFacingRight;
+        // Ignora movimentos muito pequenos do analógico.
+        if (Mathf.Abs(horizontalMovement) < 0.1f)
+            return;
 
-            Vector3 localScale = transform.localScale;
-            localScale.x *= -1f;
-            transform.localScale = localScale;
-            smokeFX.Play();
+        // Determina para qual lado o jogador está andando.
+        bool shouldFaceRight = horizontalMovement > 0f;
+
+        // Só vira quando a direção realmente muda.
+        if (shouldFaceRight != isFacingRight)
+        {
+            Flip(shouldFaceRight);
         }
     }
+
+    private void Flip(bool faceRight)
+    {
+        // Atualiza a direção atual do personagem.
+        isFacingRight = faceRight;
+
+        // Inverte apenas o sprite do personagem.
+        // Não altera a escala do Player nem do AimPivot.
+        if (playerSprite != null)
+        {
+            playerSprite.flipX = !isFacingRight;
+        }
+    }
+
+
 }
